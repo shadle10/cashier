@@ -32,33 +32,37 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $db->bootEloquent();
         $db->setAsGlobal();
 
-        $this->schema()->create('users', function ($table) {
-            $table->increments('id');
-            $table->string('email');
-            $table->string('name');
-            $table->string('stripe_id')->nullable();
-            $table->string('card_brand')->nullable();
-            $table->string('card_last_four')->nullable();
-            $table->timestamps();
+        $this->schema()->create('Users', function ($table) {
+            $table->increments('UsersId');
+            $table->string('UsersEmail');
+            $table->string('UsersName');
+            $table->string('UsersStripeId')->nullable();
+            $table->string('UsersCardBrand')->nullable();
+            $table->string('UsersCardLastFour')->nullable();
+            $table->timestamp('UsersCreatedAt');
+            $table->timestamp('UsersUpdatedAt');
+            //$table->timestamps();
         });
 
-        $this->schema()->create('subscriptions', function ($table) {
-            $table->increments('id');
-            $table->integer('user_id');
-            $table->string('name');
-            $table->string('stripe_id');
-            $table->string('stripe_plan');
-            $table->integer('quantity');
-            $table->timestamp('trial_ends_at')->nullable();
-            $table->timestamp('ends_at')->nullable();
-            $table->timestamps();
+        $this->schema()->create('Subscriptions', function ($table) {
+            $table->increments('SubscriptionsId');
+            $table->integer('SubscriptionsUserId');
+            $table->string('SubscriptionsName');
+            $table->string('SubscriptionsStripeId');
+            $table->string('SubscriptionsStripePlan');
+            $table->integer('SubscriptionsQuantity');
+            $table->timestamp('SubscriptionsTrialEndsAt')->nullable();
+            $table->timestamp('SubscriptionsEndsAt')->nullable();
+            $table->timestamp('SubscriptionsCreatedAt');
+            $table->timestamp('SubscriptionsUpdatedAt');
+            //$table->timestamps();
         });
     }
 
     public function tearDown()
     {
-        $this->schema()->drop('users');
-        $this->schema()->drop('subscriptions');
+        $this->schema()->drop('Users');
+        $this->schema()->drop('Subscriptions');
     }
 
     /**
@@ -75,7 +79,7 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $user->newSubscription('main', 'monthly-10-1')->create($this->getTestToken());
 
         $this->assertEquals(1, count($user->subscriptions));
-        $this->assertNotNull($user->subscription('main')->stripe_id);
+        $this->assertNotNull($user->subscription('main')->UsersStripeId);
 
         $this->assertTrue($user->subscribed('main'));
         $this->assertTrue($user->subscribedToPlan('monthly-10-1', 'main'));
@@ -96,14 +100,14 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($subscription->onGracePeriod());
 
         // Modify Ends Date To Past
-        $oldGracePeriod = $subscription->ends_at;
-        $subscription->fill(['ends_at' => Carbon::now()->subDays(5)])->save();
+        $oldGracePeriod = $subscription->SubscriptionsEndsAt;
+        $subscription->fill(['SubscriptionsEndsAt' => Carbon::now()->subDays(5)])->save();
 
         $this->assertFalse($subscription->active());
         $this->assertTrue($subscription->cancelled());
         $this->assertFalse($subscription->onGracePeriod());
 
-        $subscription->fill(['ends_at' => $oldGracePeriod])->save();
+        $subscription->fill(['SubscriptionsEndsAt' => $oldGracePeriod])->save();
 
         // Resume Subscription
         $subscription->resume();
@@ -115,16 +119,16 @@ class CashierTest extends PHPUnit_Framework_TestCase
         // Increment & Decrement
         $subscription->incrementQuantity();
 
-        $this->assertEquals(2, $subscription->quantity);
+        $this->assertEquals(2, $subscription->SubscriptionsQuantity);
 
         $subscription->decrementQuantity();
 
-        $this->assertEquals(1, $subscription->quantity);
+        $this->assertEquals(1, $subscription->SubscriptionsQuantity);
 
         // Swap Plan
         $subscription->swap('monthly-10-2');
 
-        $this->assertEquals('monthly-10-2', $subscription->stripe_plan);
+        $this->assertEquals('monthly-10-2', $subscription->SubscriptionsStripePlan);
 
         // Invoice Tests
         $invoice = $user->invoices()[1];
@@ -190,7 +194,7 @@ class CashierTest extends PHPUnit_Framework_TestCase
 
         $this->assertTrue($subscription->active());
         $this->assertTrue($subscription->onTrial());
-        $this->assertEquals(Carbon::today()->addDays(7)->day, $subscription->trial_ends_at->day);
+        $this->assertEquals(Carbon::today()->addDays(7)->day, $subscription->SubscriptionsTrialEndsAt->day);
 
         // Cancel Subscription
         $subscription->cancel();
@@ -204,7 +208,7 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($subscription->active());
         $this->assertFalse($subscription->onGracePeriod());
         $this->assertTrue($subscription->onTrial());
-        $this->assertEquals(Carbon::today()->addDays(7)->day, $subscription->trial_ends_at->day);
+        $this->assertEquals(Carbon::today()->addDays(7)->day, $subscription->SubscriptionsTrialEndsAt->day);
     }
 
     public function test_creating_subscription_with_explicit_trial()
@@ -222,7 +226,7 @@ class CashierTest extends PHPUnit_Framework_TestCase
 
         $this->assertTrue($subscription->active());
         $this->assertTrue($subscription->onTrial());
-        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->trial_ends_at);
+        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->SubscriptionsTrialEndsAt);
 
         // Cancel Subscription
         $subscription->cancel();
@@ -236,7 +240,7 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($subscription->active());
         $this->assertFalse($subscription->onGracePeriod());
         $this->assertTrue($subscription->onTrial());
-        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->trial_ends_at);
+        $this->assertEquals(Carbon::tomorrow()->hour(3)->minute(15), $subscription->SubscriptionsTrialEndsAt);
     }
 
     public function test_applying_coupons_to_existing_customers()
@@ -275,8 +279,8 @@ class CashierTest extends PHPUnit_Framework_TestCase
         $request = Request::create('/', 'POST', [], [], [], [], json_encode(['id' => 'foo', 'type' => 'customer.subscription.deleted',
             'data' => [
                 'object' => [
-                    'id' => $subscription->stripe_id,
-                    'customer' => $user->stripe_id,
+                    'id' => $subscription->SubscriptionsStripeId,
+                    'customer' => $user->UsersStripeId,
                 ],
             ],
         ]));
