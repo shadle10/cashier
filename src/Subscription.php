@@ -21,9 +21,10 @@ class Subscription extends Model
      *
      * @var array
      */
+    //change field names to camelcase
     protected $dates = [
-        'trial_ends_at', 'ends_at',
-        'created_at', 'updated_at',
+        'SubscriptionsTrialEndsAt', 'SubscriptionsEndsAt',
+        'SubscriptionsCreatedAt', 'SubscriptionsUpdatedAt',
     ];
 
     /**
@@ -79,7 +80,8 @@ class Subscription extends Model
      */
     public function active()
     {
-        return is_null($this->ends_at) || $this->onGracePeriod();
+        //change field names to camelcase
+        return is_null($this->SubscriptionsEndsAt) || $this->onGracePeriod();
     }
 
     /**
@@ -89,7 +91,8 @@ class Subscription extends Model
      */
     public function cancelled()
     {
-        return ! is_null($this->ends_at);
+        //change field names to camelcase
+        return ! is_null($this->SubscriptionsEndsAt);
     }
 
     /**
@@ -99,8 +102,9 @@ class Subscription extends Model
      */
     public function onTrial()
     {
-        if (! is_null($this->trial_ends_at)) {
-            return Carbon::now()->lt($this->trial_ends_at);
+        //change field names to camelcase
+        if (! is_null($this->SubscriptionsTrialEndsAt)) {
+            return Carbon::now()->lt($this->SubscriptionsTrialEndsAt);
         } else {
             return false;
         }
@@ -113,7 +117,8 @@ class Subscription extends Model
      */
     public function onGracePeriod()
     {
-        if (! is_null($endsAt = $this->ends_at)) {
+        //change field names to camelcase
+        if (! is_null($endsAt = $this->SubscriptionsEndsAt)) {
             return Carbon::now()->lt(Carbon::instance($endsAt));
         } else {
             return false;
@@ -128,7 +133,8 @@ class Subscription extends Model
      */
     public function incrementQuantity($count = 1)
     {
-        $this->updateQuantity($this->quantity + $count);
+        //change field names to camelcase
+        $this->updateQuantity($this->SubscriptionsQuantity + $count);
 
         return $this;
     }
@@ -156,7 +162,8 @@ class Subscription extends Model
      */
     public function decrementQuantity($count = 1)
     {
-        $this->updateQuantity(max(1, $this->quantity - $count));
+        //change field names to camelcase
+        $this->updateQuantity(max(1, $this->SubscriptionsQuantity - $count));
 
         return $this;
     }
@@ -172,13 +179,15 @@ class Subscription extends Model
     {
         $subscription = $this->asStripeSubscription();
 
+        //this is as the stripe subscription so don't change the field
         $subscription->quantity = $quantity;
 
         $subscription->prorate = $this->prorate;
 
         $subscription->save();
 
-        $this->quantity = $quantity;
+        // change field name to camelcase
+        $this->SubscriptionsQuantity = $quantity;
 
         $this->save();
 
@@ -223,7 +232,8 @@ class Subscription extends Model
      */
     public function skipTrial()
     {
-        $this->trial_ends_at = null;
+        // change field name to camelcase
+        $this->SubscriptionsTrialEndsAt = null;
 
         return $this;
     }
@@ -250,7 +260,8 @@ class Subscription extends Model
         // to maintain the current trial state, whether that is "active" or to run
         // the swap out with the exact number of days left on this current plan.
         if ($this->onTrial()) {
-            $subscription->trial_end = $this->trial_ends_at->getTimestamp();
+            // change field name to camelcase
+            $subscription->trial_end = $this->SubscriptionsTrialEndsAt->getTimestamp();
         } else {
             $subscription->trial_end = 'now';
         }
@@ -258,17 +269,21 @@ class Subscription extends Model
         // Again, if no explicit quantity was set, the default behaviors should be to
         // maintain the current quantity onto the new plan. This is a sensible one
         // that should be the expected behavior for most developers with Stripe.
-        if ($this->quantity) {
-            $subscription->quantity = $this->quantity;
+        
+        // change field name to camelcase
+        if ($this->SubscriptionsQuantity) {
+            // change field name to camelcase
+            $subscription->quantity = $this->SubscriptionsQuantity;
         }
 
         $subscription->save();
 
         $this->user->invoice();
 
+        // change field names to camelcase
         $this->fill([
-            'stripe_plan' => $plan,
-            'ends_at' => null,
+            'SubscriptionsStripePlan' => $plan,
+            'SubscriptionsEndsAt' => null,
         ])->save();
 
         return $this;
@@ -289,9 +304,11 @@ class Subscription extends Model
         // would have ended. Otherwise, we'll retrieve the end of the billing period
         // period and make that the end of the grace period for this current user.
         if ($this->onTrial()) {
-            $this->ends_at = $this->trial_ends_at;
+            // change field names to camelcase
+            $this->SubscriptionsEndsAt = $this->SubscriptionsTrialEndsAt;
         } else {
-            $this->ends_at = Carbon::createFromTimestamp(
+            // change field names to camelcase
+            $this->SubscriptionsEndsAt = Carbon::createFromTimestamp(
                 $subscription->current_period_end
             );
         }
@@ -324,7 +341,8 @@ class Subscription extends Model
      */
     public function markAsCancelled()
     {
-        $this->fill(['ends_at' => Carbon::now()])->save();
+        // change field names to camelcase
+        $this->fill(['SubscriptionsEndsAt' => Carbon::now()])->save();
     }
 
     /**
@@ -345,10 +363,13 @@ class Subscription extends Model
         // To resume the subscription we need to set the plan parameter on the Stripe
         // subscription object. This will force Stripe to resume this subscription
         // where we left off. Then, we'll set the proper trial ending timestamp.
-        $subscription->plan = $this->stripe_plan;
+        
+        // change field names to camelcase
+        $subscription->plan = $this->SubscriptionsStripePlan;
 
         if ($this->onTrial()) {
-            $subscription->trial_end = $this->trial_ends_at->getTimestamp();
+            // change field names to camelcase
+            $subscription->trial_end = $this->SubscriptionsTrialEndsAt->getTimestamp();
         } else {
             $subscription->trial_end = 'now';
         }
@@ -358,7 +379,9 @@ class Subscription extends Model
         // Finally, we will remove the ending timestamp from the user's record in the
         // local database to indicate that the subscription is active again and is
         // no longer "cancelled". Then we will save this record in the database.
-        $this->fill(['ends_at' => null])->save();
+        
+        // change field names to camelcase
+        $this->fill(['SubscriptionsEndsAt' => null])->save();
 
         return $this;
     }
@@ -378,6 +401,7 @@ class Subscription extends Model
             throw new LogicException('The Stripe customer does not have any subscriptions.');
         }
 
-        return $subscriptions->retrieve($this->stripe_id);
+        // change field names to camelcase
+        return $subscriptions->retrieve($this->SubscriptionsStripeId);
     }
 }

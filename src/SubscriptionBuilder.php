@@ -183,14 +183,14 @@ class SubscriptionBuilder
         } else {
             $trialEndsAt = $this->trialExpires;
         }
-
+        // change field names to camelcase - this may be referring to the Stripe API Call (in which case the camel case is wrong! and it needs to go back to underscore format)
         return $this->owner->subscriptions()->create([
-            'name' => $this->name,
-            'stripe_id' => $subscription->id,
-            'stripe_plan' => $this->plan,
-            'quantity' => $this->quantity,
-            'trial_ends_at' => $trialEndsAt,
-            'ends_at' => null,
+            'SubscriptionsName' => $this->name,
+            'SubscriptionsStripeId' => $subscription->id,
+            'SubscriptionsStripePlan' => $this->plan,
+            'SubscriptionsQuantity' => $this->quantity,
+            'SubscriptionsTrialEndsAt' => $trialEndsAt,
+            'SubscriptionsEndsAt' => null,
         ]);
     }
 
@@ -203,7 +203,8 @@ class SubscriptionBuilder
      */
     protected function getStripeCustomer($token = null, array $options = [])
     {
-        if (! $this->owner->stripe_id) {
+        // change field names to camelcase - this may be referring to the Stripe API Call (in which case the camel case is wrong! and it needs to go back to underscore format)
+        if (! $this->owner->UsersStripeId) {
             $customer = $this->owner->createAsStripeCustomer($token, $options);
         } else {
             $customer = $this->owner->asStripeCustomer();
@@ -223,6 +224,7 @@ class SubscriptionBuilder
      */
     protected function buildPayload()
     {
+        // not sure if any of the below needs to be converted to camelcase - it looks like not based on the fields that are visible (some don't exist in subscriptions table)
         return array_filter([
             'plan' => $this->plan,
             'quantity' => $this->quantity,

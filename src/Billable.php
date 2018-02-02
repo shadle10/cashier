@@ -43,9 +43,10 @@ trait Billable
         ], $options);
 
         $options['amount'] = $amount;
-
-        if (! array_key_exists('source', $options) && $this->stripe_id) {
-            $options['customer'] = $this->stripe_id;
+        //change field name stripe_id -> UsersStripeId
+        if (! array_key_exists('source', $options) && $this->UsersStripeId) {
+            //change field name stripe_id -> UsersStripeId
+            $options['customer'] = $this->UsersStripeId;
         }
 
         if (! array_key_exists('source', $options) && ! array_key_exists('customer', $options)) {
@@ -78,7 +79,8 @@ trait Billable
      */
     public function hasCardOnFile()
     {
-        return (bool) $this->card_brand;
+        ////change field name card_brand -> UsersCardBrand
+        return (bool) $this->UsersCardBrand;
     }
 
     /**
@@ -93,12 +95,13 @@ trait Billable
      */
     public function tab($description, $amount, array $options = [])
     {
-        if (! $this->stripe_id) {
+        //change field name stripe_id -> UsersStripeId
+        if (! $this->UsersStripeId) {
             throw new InvalidArgumentException(class_basename($this).' is not a Stripe customer. See the createAsStripeCustomer method.');
         }
-
+        //change field name stripe_id -> UsersStripeId
         $options = array_merge([
-            'customer' => $this->stripe_id,
+            'customer' => $this->UsersStripeId,
             'amount' => $amount,
             'currency' => $this->preferredCurrency(),
             'description' => $description,
@@ -154,9 +157,9 @@ trait Billable
         if (is_null($plan)) {
             return $subscription && $subscription->onTrial();
         }
-
+        //change field name stripe_plan -> SubscriptionsStripePlan
         return $subscription && $subscription->onTrial() &&
-               $subscription->stripe_plan === $plan;
+               $subscription->SubscriptionsStripePlan === $plan;
     }
 
     /**
@@ -166,7 +169,8 @@ trait Billable
      */
     public function onGenericTrial()
     {
-        return $this->trial_ends_at && Carbon::now()->lt($this->trial_ends_at);
+        //change field name trial_ends_at -> SubscriptionsTrialEndsAt
+        return $this->SubscriptionsTrialEndsAt && Carbon::now()->lt($this->SubscriptionsTrialEndsAt);
     }
 
     /**
@@ -187,9 +191,9 @@ trait Billable
         if (is_null($plan)) {
             return $subscription->valid();
         }
-
+        //change field name stripe_plan -> SubscriptionsStripePlan
         return $subscription->valid() &&
-               $subscription->stripe_plan === $plan;
+               $subscription->SubscriptionsStripePlan === $plan;
     }
 
     /**
@@ -200,8 +204,9 @@ trait Billable
      */
     public function subscription($subscription = 'default')
     {
+        //change field name created_at -> SubscriptionsCreatedAt
         return $this->subscriptions->sortByDesc(function ($value) {
-            return $value->created_at->getTimestamp();
+            return $value->SubscriptionsCreatedAt->getTimestamp();
         })
         ->first(function ($value) use ($subscription) {
             return $value->name === $subscription;
@@ -215,7 +220,8 @@ trait Billable
      */
     public function subscriptions()
     {
-        return $this->hasMany(Subscription::class, $this->getForeignKey())->orderBy('created_at', 'desc');
+        //change field name created_at -> SubscriptionsCreatedAt
+        return $this->hasMany(Subscription::class, $this->getForeignKey())->orderBy('SubscriptionsCreatedAt', 'desc');
     }
 
     /**
@@ -225,9 +231,10 @@ trait Billable
      */
     public function invoice()
     {
-        if ($this->stripe_id) {
+        //change field name stripe_id -> UsersStripeId
+        if ($this->UsersStripeId) {
             try {
-                return StripeInvoice::create(['customer' => $this->stripe_id], $this->getStripeKey())->pay();
+                return StripeInvoice::create(['customer' => $this->UsersStripeId], $this->getStripeKey())->pay();
             } catch (StripeErrorInvalidRequest $e) {
                 return false;
             }
@@ -244,8 +251,9 @@ trait Billable
     public function upcomingInvoice()
     {
         try {
+            //change field name stripe_id -> UsersStripeId
             $stripeInvoice = StripeInvoice::upcoming(
-                ['customer' => $this->stripe_id], ['api_key' => $this->getStripeKey()]
+                ['customer' => $this->UsersStripeId], ['api_key' => $this->getStripeKey()]
             );
 
             return new Invoice($this, $stripeInvoice);
@@ -282,8 +290,8 @@ trait Billable
         if (is_null($invoice)) {
             throw new NotFoundHttpException;
         }
-
-        if ($invoice->customer !== $this->stripe_id) {
+        //change field name stripe_id -> UsersStripeId
+        if ($invoice->customer !== $this->UsersStripeId) {
             throw new AccessDeniedHttpException;
         }
 
@@ -431,13 +439,14 @@ trait Billable
     public function updateCardFromStripe()
     {
         $defaultCard = $this->defaultCard();
-
+        //change field name card_brand -> UsersCardBrand
+        //change field name card_last_four -> UsersCardLastFour
         if ($defaultCard) {
             $this->fillCardDetails($defaultCard)->save();
         } else {
             $this->forceFill([
-                'card_brand' => null,
-                'card_last_four' => null,
+                'UsersCardBrand' => null,
+                'UsersCardLastFour' => null,
             ])->save();
         }
 
@@ -452,12 +461,14 @@ trait Billable
      */
     protected function fillCardDetails($card)
     {
+        //change field name card_brand -> UsersCardBrand
+        //change field name card_last_four -> UsersCardLastFour
         if ($card instanceof StripeCard) {
-            $this->card_brand = $card->brand;
-            $this->card_last_four = $card->last4;
+            $this->UsersCardBrand = $card->brand;
+            $this->UsersCardLastFour = $card->last4;
         } elseif ($card instanceof StripeBankAccount) {
-            $this->card_brand = 'Bank Account';
-            $this->card_last_four = $card->last4;
+            $this->UsersCardBrand = 'Bank Account';
+            $this->UsersCardLastFour = $card->last4;
         }
 
         return $this;
@@ -506,9 +517,9 @@ trait Billable
         if (! $subscription || ! $subscription->valid()) {
             return false;
         }
-
+        //change field name stripe_plan -> SubscriptionsStripePlan
         foreach ((array) $plans as $plan) {
-            if ($subscription->stripe_plan === $plan) {
+            if ($subscription->SubscriptionsStripePlan === $plan) {
                 return true;
             }
         }
@@ -524,8 +535,9 @@ trait Billable
      */
     public function onPlan($plan)
     {
+        //change field name stripe_plan -> SubscriptionsStripePlan
         return ! is_null($this->subscriptions->first(function ($value) use ($plan) {
-            return $value->stripe_plan === $plan && $value->valid();
+            return $value->SubscriptionsStripePlan === $plan && $value->valid();
         }));
     }
 
@@ -536,7 +548,8 @@ trait Billable
      */
     public function hasStripeId()
     {
-        return ! is_null($this->stripe_id);
+        //change field name stripe_id -> UsersStripeId - this however may be referring to both subscriptions and customers so this may need to be changed
+        return ! is_null($this->UsersStripeId);
     }
 
     /**
@@ -548,8 +561,9 @@ trait Billable
      */
     public function createAsStripeCustomer($token, array $options = [])
     {
+        //change field name email -> UsersEmail
         $options = array_key_exists('email', $options)
-                ? $options : array_merge($options, ['email' => $this->email]);
+                ? $options : array_merge($options, ['email' => $this->UsersEmail]);
 
         // Here we will create the customer instance on Stripe and store the ID of the
         // user from Stripe. This ID will correspond with the Stripe user instances
@@ -557,8 +571,8 @@ trait Billable
         $customer = StripeCustomer::create(
             $options, $this->getStripeKey()
         );
-
-        $this->stripe_id = $customer->id;
+        //change field name stripe_id -> UsersStripeId
+        $this->UsersStripeId = $customer->id;
 
         $this->save();
 
@@ -579,7 +593,8 @@ trait Billable
      */
     public function asStripeCustomer()
     {
-        return StripeCustomer::retrieve($this->stripe_id, $this->getStripeKey());
+        //change field name stripe_id -> UsersStripeId
+        return StripeCustomer::retrieve($this->UsersStripeId, $this->getStripeKey());
     }
 
     /**
