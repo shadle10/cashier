@@ -60,7 +60,8 @@ class Subscription extends Model
 
         $model = new $model;
 
-        return $this->belongsTo(get_class($model), $model->getForeignKey());
+        //return $this->belongsTo(get_class($model), $model->getForeignKey());
+        return $this->belongsTo(get_class($model), 'SubscriptionsUsersId');
     }
 
     /**
